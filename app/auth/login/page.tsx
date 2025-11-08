@@ -46,10 +46,20 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
 
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      console.log("[v0] Attempting login for:", email)
+
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
+
+      if (data.user) {
+        console.log("[v0] Login successful, user data:", {
+          email: data.user.email,
+          email_confirmed_at: data.user.email_confirmed_at,
+          confirmed: !!data.user.email_confirmed_at,
+        })
+      }
 
       if (authError) {
         if (
