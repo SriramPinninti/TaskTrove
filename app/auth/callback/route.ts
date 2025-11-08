@@ -1,64 +1,54 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
-  const next = requestUrl.searchParams.get("next") || "/dashboard"
-  const origin = requestUrl.origin
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const origin = url.origin;
 
-  console.log("[v0] Auth callback - URL:", requestUrl.href)
-  console.log("[v0] Auth callback - code:", code ? "present" : "missing")
-
-  if (code) {
-    try {
-      const supabase = await createClient()
-
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-
-      if (error) {
-        console.error("[v0] Error exchanging code:", error.message, error.status)
-
-        if (error.message.includes("expired") || error.message.includes("invalid")) {
-          return NextResponse.redirect(
-            `${origin}/auth/login?error=expired_link&email=${requestUrl.searchParams.get("email") || ""}`,
-          )
-        }
-
-        return NextResponse.redirect(`${origin}/auth/login?error=auth_code_error`)
-      }
-
-      console.log("[v0] Email verified successfully for:", data.user?.email)
-      console.log("[v0] Email confirmed at:", data.user?.email_confirmed_at)
-      console.log("[v0] Session created:", !!data.session)
-
-      if (data.user) {
-        const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", data.user.id).single()
-
-        if (!existingProfile) {
-          const { error: profileError } = await supabase.from("profiles").insert({
-            id: data.user.id,
-            email: data.user.email,
-            full_name: data.user.user_metadata?.full_name || "",
-            credits: 100,
-            role: "user",
-          })
-
-          if (profileError) {
-            console.error("[v0] Profile creation error:", profileError)
-          } else {
-            console.log("[v0] Profile created for:", data.user.email)
-          }
-        }
-      }
-
-      return NextResponse.redirect(`${origin}${next}?verified=true`)
-    } catch (error) {
-      console.error("[v0] Callback exception:", error)
-      return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_error`)
-    }
+  if (!code) {
+    console.error("No code provided in the verification link.");
+    return NextResponse.redirect(`${origin}/auth/login?error=missing_code`);
   }
 
-  console.log("[v0] No code provided in callback")
-  return NextResponse.redirect(`${origin}/auth/login`)
+  const supabase = createClient();
+
+  try {
+    // Exchange the code for a session
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error) {
+      console.error("Error exchanging code:", error);
+      return NextResponse.redirect(`${origin}/auth/login?error=link_expired`);
+    }
+
+    if (data?.user) {
+      console.log("✅ Email verified successfully for:", data.user.email);
+
+      // Optional: create user profile if missing
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("id", data.user.id)
+        .single();
+
+      if (!profile) {
+        await supabase.from("profiles").insert({
+          id: data.user.id,
+          email: data.user.email,
+          credits: 100,
+          role: "user",
+        });
+      }
+
+      // Redirect to dashboard after successful verification
+      return NextResponse.redirect(`${origin}/dashboard`);
+    }
+  } catch (err) {
+    console.error("Unexpected error during callback:", err);
+    return NextResponse.redirect(`${origin}/auth/login?error=unexpected`);
+  }
+
+  // Fallback if no user data
+  return NextResponse.redirect(`${origin}/auth/login?error=session_failed`);
 }
