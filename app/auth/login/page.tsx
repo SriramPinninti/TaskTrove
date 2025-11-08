@@ -8,72 +8,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [showResend, setShowResend] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
-
-  useEffect(() => {
-    const errorParam = searchParams.get("error")
-    const verifiedParam = searchParams.get("verified")
-    const emailParam = searchParams.get("email")
-
-    if (emailParam) {
-      setEmail(decodeURIComponent(emailParam))
-    }
-
-    if (errorParam === "link_expired") {
-      setError("Email verification link has expired. Please request a new one below.")
-      setShowResend(true)
-    } else if (errorParam === "verification_failed") {
-      setError("Email verification failed. Please try again or contact support.")
-      setShowResend(true)
-    } else if (errorParam === "email_not_confirmed") {
-      setError("Email confirmation incomplete. Please check your inbox and click the verification link.")
-      setShowResend(true)
-    } else if (errorParam === "missing_code" || errorParam === "no_user") {
-      setError("Invalid verification link. Please request a new one.")
-      setShowResend(true)
-    } else if (errorParam === "unexpected") {
-      setError("Something went wrong. Please try again or contact support.")
-    }
-
-    if (verifiedParam === "true") {
-      setSuccess("Email verified successfully! You can now login.")
-    }
-  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
-    setSuccess(null)
     setShowResend(false)
 
     try {
       const supabase = createClient()
 
-      console.log("[v0] Login - Attempting login for:", email)
-
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (authError) {
-        console.error("[v0] Login - Error:", authError.message)
-
         if (
           authError.message.toLowerCase().includes("email not confirmed") ||
-          authError.message.toLowerCase().includes("email confirmation")
+          authError.message.toLowerCase().includes("confirm your email")
         ) {
           setError("Please verify your email address before logging in. Check your inbox for the verification link.")
           setShowResend(true)
@@ -81,38 +44,23 @@ export default function LoginPage() {
           return
         }
 
-        if (authError.message.toLowerCase().includes("invalid login credentials")) {
+        if (authError.message.toLowerCase().includes("invalid")) {
           setError("Invalid email or password. Please try again.")
-          setIsLoading(false)
-          return
+        } else {
+          setError(authError.message)
         }
-
-        throw authError
-      }
-
-      if (data.user && !data.user.email_confirmed_at) {
-        console.error("[v0] Login - Email not confirmed despite successful login")
-        await supabase.auth.signOut()
-        setError("Please verify your email address before logging in. Check your inbox for the verification link.")
-        setShowResend(true)
         setIsLoading(false)
         return
       }
 
-      console.log("[v0] Login - Success! User:", data.user?.email)
-      console.log("[v0] Login - Email confirmed at:", data.user?.email_confirmed_at)
-      console.log("[v0] Login - Redirecting to dashboard")
-
-      router.refresh()
       router.push("/dashboard")
+      router.refresh()
     } catch (error: unknown) {
-      console.error("[v0] Login - Unexpected error:", error)
       if (error instanceof Error) {
         setError(error.message || "An unexpected error occurred")
       } else {
         setError("An unexpected error occurred. Please try again.")
       }
-    } finally {
       setIsLoading(false)
     }
   }
@@ -125,30 +73,25 @@ export default function LoginPage() {
 
     setIsLoading(true)
     setError(null)
-    setSuccess(null)
 
     try {
       const supabase = createClient()
-
-      console.log("[v0] Resending verification email to:", email)
 
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: email,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
+          emailRedirectTo:
+            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`,
         },
       })
 
-      if (error) {
-        console.error("[v0] Resend error:", error)
-        throw error
-      }
+      if (error) throw error
 
-      setSuccess("Verification email sent! Please check your inbox and click the link to verify your account.")
+      setError(null)
+      alert("Verification email sent! Please check your inbox and click the link to verify your account.")
       setShowResend(false)
     } catch (error: unknown) {
-      console.error("[v0] Resend failed:", error)
       if (error instanceof Error) {
         setError(error.message || "Failed to resend verification email")
       } else {
@@ -196,7 +139,6 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                {success && <div className="rounded-md bg-green-50 p-3 text-sm text-green-600">{success}</div>}
                 {error && (
                   <div className="space-y-2 rounded-md bg-red-50 p-3">
                     <p className="text-sm text-red-600">{error}</p>

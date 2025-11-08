@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label"
 import Link from "next/link"
 import { useState } from "react"
 import { Mail } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 const ALLOWED_EMAIL_DOMAINS = ["@thapar.edu", "@student.thapar.edu"]
 
@@ -17,13 +18,14 @@ export default function SignupPage() {
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [linkSent, setLinkSent] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const router = useRouter()
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
-    const supabase = createClient()
     setIsLoading(true)
     setError(null)
 
@@ -35,6 +37,12 @@ export default function SignupPage() {
       return
     }
 
+    if (password !== confirmPassword) {
+      setError("Passwords do not match")
+      setIsLoading(false)
+      return
+    }
+
     if (password.length < 6) {
       setError("Password must be at least 6 characters long")
       setIsLoading(false)
@@ -42,38 +50,27 @@ export default function SignupPage() {
     }
 
     try {
-      const { data: existingUser } = await supabase.from("profiles").select("email").eq("email", email).single()
+      const supabase = createClient()
 
-      if (existingUser) {
-        setError("This email is already registered. Please login with your existing account or use 'Forgot Password'.")
-        setIsLoading(false)
-        return
-      }
-
-      const redirectUrl = process.env.NEXT_PUBLIC_SITE_URL
-        ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-        : `${window.location.origin}/auth/callback`
-
-      console.log("[v0] Signup redirect URL:", redirectUrl)
-
-      const { error } = await supabase.auth.signUp({
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: redirectUrl,
+          emailRedirectTo:
+            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL || `${window.location.origin}/auth/callback`,
           data: {
             full_name: fullName,
           },
         },
       })
 
-      if (error) throw error
+      if (signUpError) throw signUpError
 
-      setLinkSent(true)
+      setSuccess(true)
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.message.includes("Failed to fetch")) {
-          setError("Network error. Please check your connection and try again.")
+        if (error.message.includes("already registered")) {
+          setError("This email is already registered. Please login or reset your password.")
         } else {
           setError(error.message)
         }
@@ -85,7 +82,7 @@ export default function SignupPage() {
     }
   }
 
-  if (linkSent) {
+  if (success) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-gradient-to-br from-teal-50 to-white p-6">
         <div className="w-full max-w-sm">
@@ -107,41 +104,12 @@ export default function SignupPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="text-sm text-gray-600">
-                Verification link sent! Check your Thapar email inbox. Click the link to verify your email and activate
-                your account.
+                Please check your email inbox and click the verification link to activate your account. After
+                confirming, you can log in.
               </p>
-              <div className="flex flex-col gap-2">
-                <Button asChild className="w-full bg-teal-600 hover:bg-teal-700">
-                  <Link href="/auth/login">Back to Login</Link>
-                </Button>
-                <Button
-                  variant="outline"
-                  className="w-full bg-transparent"
-                  onClick={async () => {
-                    setIsLoading(true)
-                    setError(null)
-                    try {
-                      const supabase = createClient()
-                      const { error } = await supabase.auth.resend({
-                        type: "signup",
-                        email: email,
-                        options: {
-                          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
-                        },
-                      })
-                      if (error) throw error
-                      alert("Verification email resent! Check your inbox.")
-                    } catch (err) {
-                      setError("Failed to resend email. Please try again.")
-                    } finally {
-                      setIsLoading(false)
-                    }
-                  }}
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Resending..." : "Resend Verification Email"}
-                </Button>
-              </div>
+              <Button asChild className="w-full bg-teal-600 hover:bg-teal-700">
+                <Link href="/auth/login">Go to Login</Link>
+              </Button>
             </CardContent>
           </Card>
         </div>
@@ -196,6 +164,17 @@ export default function SignupPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    placeholder="Re-enter your password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                   />
                 </div>
                 {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</div>}
