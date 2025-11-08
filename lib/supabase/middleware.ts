@@ -37,12 +37,5 @@ export async function updateSession(request: NextRequest) {
   console.log("[v0] Middleware - User:", user?.email || "none")
   console.log("[v0] Middleware - Email confirmed:", user?.email_confirmed_at ? "yes" : "no")
 
-  if (!user && !request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/") {
-    const url = request.nextUrl.clone()
-    url.pathname = "/auth/login"
-    console.log("[v0] Middleware - Redirecting to login")
-    return NextResponse.redirect(url)
-  }
-
   return supabaseResponse
 }
