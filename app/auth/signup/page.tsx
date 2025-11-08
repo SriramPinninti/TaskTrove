@@ -50,16 +50,13 @@ export default function SignupPage() {
         return
       }
 
-      const redirectUrl =
-        process.env.NEXT_PUBLIC_SITE_URL ||
-        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-        `${typeof window !== "undefined" ? window.location.origin : ""}/auth/verify`
+      const redirectUrl = `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`
 
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${redirectUrl}/auth/verify`,
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
           },
@@ -125,10 +122,7 @@ export default function SignupPage() {
                         type: "signup",
                         email: email,
                         options: {
-                          emailRedirectTo:
-                            process.env.NEXT_PUBLIC_SITE_URL ||
-                            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-                            `${typeof window !== "undefined" ? window.location.origin : ""}/auth/verify`,
+                          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
                         },
                       })
                       if (error) throw error

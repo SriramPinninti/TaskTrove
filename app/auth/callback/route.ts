@@ -20,6 +20,7 @@ export async function GET(request: Request) {
       }
 
       console.log("[v0] Successfully exchanged code for session, user:", data.user?.email)
+      console.log("[v0] Email confirmed:", data.user?.email_confirmed_at)
 
       if (data.user) {
         const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", data.user.id).single()
@@ -38,8 +39,12 @@ export async function GET(request: Request) {
           } else {
             console.log("[v0] Profile created successfully for user:", data.user.email)
           }
+        } else {
+          console.log("[v0] Profile already exists for user:", data.user.email)
         }
       }
+
+      return NextResponse.redirect(`${origin}/auth/login?verified=true`)
     } catch (error) {
       console.error("[v0] Exception during code exchange:", error)
       return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`)

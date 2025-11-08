@@ -8,42 +8,115 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const verified = searchParams.get("verified")
+    const errorParam = searchParams.get("error")
+
+    if (verified === "true") {
+      setSuccess("Email verified successfully! You can now log in.")
+    }
+
+    if (errorParam === "verification_failed") {
+      setError("Email verification failed. Please try again or contact support.")
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     setError(null)
+    setSuccess(null)
 
     try {
       const supabase = createClient()
 
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log("[v0] Attempting login for:", email)
+
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      if (error) throw error
+      if (authError) {
+        console.log("[v0] Login error:", authError.message)
+        throw authError
+      }
+
+      console.log("[v0] Login successful, user:", authData.user?.email)
+      console.log("[v0] Email confirmed:", authData.user?.email_confirmed_at)
+
+      if (!authData.user?.email_confirmed_at) {
+        console.log("[v0] Email not confirmed, signing out user")
+        await supabase.auth.signOut()
+        setError(
+          "Please verify your email before logging in. Check your inbox for the verification link or click below to resend.",
+        )
+        setIsLoading(false)
+        return
+      }
 
       // Redirect to dashboard on successful login
       router.push("/dashboard")
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.message.includes("Invalid login credentials")) {
+        console.log("[v0] Login error caught:", error.message)
+
+        if (error.message.includes("Email not confirmed")) {
+          setError(
+            "Please verify your email before logging in. Check your inbox for the verification link or click below to resend.",
+          )
+        } else if (error.message.includes("Invalid login credentials")) {
           setError("Invalid email or password. Please try again.")
         } else {
           setError(error.message || "Failed to login")
         }
       } else {
         setError("An unexpected error occurred. Please try again.")
+      }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      setError("Please enter your email address first")
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      const supabase = createClient()
+      const { error } = await supabase.auth.resend({
+        type: "signup",
+        email: email,
+        options: {
+          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || window.location.origin}/auth/callback`,
+        },
+      })
+
+      if (error) throw error
+
+      setSuccess("Verification email sent! Please check your inbox.")
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError("Failed to resend verification email")
       }
     } finally {
       setIsLoading(false)
@@ -87,7 +160,23 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                {error && <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">{error}</div>}
+                {success && <div className="rounded-md bg-green-50 p-3 text-sm text-green-600">{success}</div>}
+                {error && (
+                  <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
+                    {error}
+                    {error.includes("verify your email") && (
+                      <Button
+                        type="button"
+                        variant="link"
+                        className="mt-2 h-auto p-0 text-sm text-red-700 underline"
+                        onClick={handleResendVerification}
+                        disabled={isLoading}
+                      >
+                        Resend verification email
+                      </Button>
+                    )}
+                  </div>
+                )}
                 <Button type="submit" className="w-full bg-teal-600 hover:bg-teal-700" disabled={isLoading}>
                   {isLoading ? "Logging in..." : "Login"}
                 </Button>
