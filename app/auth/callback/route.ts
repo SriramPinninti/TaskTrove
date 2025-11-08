@@ -1,29 +1,22 @@
 import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/headers"
+import { NextResponse } from "next/server" // Fixed import from next/server instead of next/headers
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url)
-  const code = searchParams.get("code")
-  const next = searchParams.get("next") ?? "/dashboard"
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get("code")
+  const next = requestUrl.searchParams.get("next") ?? "/dashboard"
 
   if (code) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
-      const forwardedHost = request.headers.get("x-forwarded-host")
-      const isLocalEnv = process.env.NODE_ENV === "development"
-
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+      return NextResponse.redirect(`${requestUrl.origin}${next}`)
+    } else {
+      console.error("[v0] Callback error:", error.message)
+      return NextResponse.redirect(`${requestUrl.origin}/auth/login?error=verification_failed`)
     }
   }
 
-  // Return to login if something went wrong
-  return NextResponse.redirect(`${origin}/auth/login`)
+  return NextResponse.redirect(`${requestUrl.origin}/auth/login`)
 }
