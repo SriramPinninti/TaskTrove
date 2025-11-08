@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -18,6 +18,15 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [showResend, setShowResend] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const urlError = searchParams.get("error")
+    if (urlError === "verification_failed") {
+      setError("Email verification link is invalid or expired. Please request a new one.")
+      setShowResend(true)
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -40,11 +49,7 @@ export default function LoginPage() {
         ) {
           setError("Please verify your email address before logging in. Check your inbox for the verification link.")
           setShowResend(true)
-          setIsLoading(false)
-          return
-        }
-
-        if (authError.message.toLowerCase().includes("invalid")) {
+        } else if (authError.message.toLowerCase().includes("invalid")) {
           setError("Invalid email or password. Please try again.")
         } else {
           setError(authError.message)
@@ -53,6 +58,7 @@ export default function LoginPage() {
         return
       }
 
+      // Success!
       router.push("/dashboard")
       router.refresh()
     } catch (error: unknown) {
