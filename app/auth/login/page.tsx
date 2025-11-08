@@ -24,12 +24,20 @@ export default function LoginPage() {
   useEffect(() => {
     const errorParam = searchParams.get("error")
     const verifiedParam = searchParams.get("verified")
+    const emailParam = searchParams.get("email")
+
+    if (emailParam) {
+      setEmail(emailParam)
+    }
 
     if (verifiedParam === "true") {
       setSuccess("Email verified successfully! You can now login.")
     }
 
-    if (errorParam === "auth_code_error") {
+    if (errorParam === "expired_link") {
+      setError("Email verification link has expired. Please request a new one below.")
+      setShowResend(true)
+    } else if (errorParam === "auth_code_error") {
       setError("Email verification link is invalid or expired. Please request a new one.")
       setShowResend(true)
     } else if (errorParam === "auth_callback_error") {

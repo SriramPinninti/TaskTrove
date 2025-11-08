@@ -7,6 +7,7 @@ export async function GET(request: Request) {
   const next = requestUrl.searchParams.get("next") || "/dashboard"
   const origin = requestUrl.origin
 
+  console.log("[v0] Auth callback - URL:", requestUrl.href)
   console.log("[v0] Auth callback - code:", code ? "present" : "missing")
 
   if (code) {
@@ -16,12 +17,20 @@ export async function GET(request: Request) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
       if (error) {
-        console.error("[v0] Error exchanging code:", error)
+        console.error("[v0] Error exchanging code:", error.message, error.status)
+
+        if (error.message.includes("expired") || error.message.includes("invalid")) {
+          return NextResponse.redirect(
+            `${origin}/auth/login?error=expired_link&email=${requestUrl.searchParams.get("email") || ""}`,
+          )
+        }
+
         return NextResponse.redirect(`${origin}/auth/login?error=auth_code_error`)
       }
 
       console.log("[v0] Email verified successfully for:", data.user?.email)
       console.log("[v0] Email confirmed at:", data.user?.email_confirmed_at)
+      console.log("[v0] Session created:", !!data.session)
 
       if (data.user) {
         const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", data.user.id).single()
@@ -50,5 +59,6 @@ export async function GET(request: Request) {
     }
   }
 
+  console.log("[v0] No code provided in callback")
   return NextResponse.redirect(`${origin}/auth/login`)
 }
