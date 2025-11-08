@@ -1,27 +1,26 @@
-import { createClient } from "@/lib/supabase/server"
-import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
-  const origin = requestUrl.origin
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
+  const supabase = createClient();
 
-  if (code) {
-    const supabase = await createClient()
+  console.log("🧩 Callback hit with code:", code);
 
-    // Exchange code for session
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (error) {
-      console.error("[v0] Error exchanging code:", error)
-      // Redirect to login with error
-      return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`)
-    }
-
-    // Success! Redirect to dashboard
-    return NextResponse.redirect(`${origin}/dashboard`)
+  if (!code) {
+    return NextResponse.redirect(`${origin}/auth/login?error=missing_code`);
   }
 
-  // No code found, redirect to login
-  return NextResponse.redirect(`${origin}/auth/login`)
+  const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+  console.log("✅ Exchange result:", { data, error });
+
+  if (error) {
+    return NextResponse.redirect(`${origin}/auth/login?error=exchange_failed`);
+  }
+
+  console.log("🎉 User verified:", data.user);
+
+  return NextResponse.redirect(`${origin}/dashboard`);
 }
