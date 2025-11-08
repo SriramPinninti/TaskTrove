@@ -12,6 +12,7 @@ export async function GET(request: Request) {
   if (code) {
     try {
       const supabase = await createClient()
+
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
       if (error) {
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
         }
       }
 
-      return NextResponse.redirect(`${origin}/auth/login?verified=true`)
+      return NextResponse.redirect(`${origin}/dashboard?verified=true`)
     } catch (error) {
       console.error("[v0] Exception during code exchange:", error)
       return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`)

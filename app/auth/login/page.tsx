@@ -21,12 +21,7 @@ export default function LoginPage() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    const verified = searchParams.get("verified")
     const errorParam = searchParams.get("error")
-
-    if (verified === "true") {
-      setSuccess("Email verified successfully! You can now log in.")
-    }
 
     if (errorParam === "verification_failed") {
       setError("Email verification failed. Please try again or contact support.")
@@ -51,35 +46,29 @@ export default function LoginPage() {
 
       if (authError) {
         console.log("[v0] Login error:", authError.message)
+
+        if (authError.message.includes("Email not confirmed")) {
+          setError(
+            "Please verify your email before logging in. Check your inbox for the verification link or click below to resend.",
+          )
+          setIsLoading(false)
+          return
+        }
+
         throw authError
       }
 
       console.log("[v0] Login successful, user:", authData.user?.email)
-      console.log("[v0] Email confirmed:", authData.user?.email_confirmed_at)
+      console.log("[v0] Email confirmed at:", authData.user?.email_confirmed_at)
 
-      if (!authData.user?.email_confirmed_at) {
-        console.log("[v0] Email not confirmed, signing out user")
-        await supabase.auth.signOut()
-        setError(
-          "Please verify your email before logging in. Check your inbox for the verification link or click below to resend.",
-        )
-        setIsLoading(false)
-        return
-      }
-
-      // Redirect to dashboard on successful login
       router.push("/dashboard")
     } catch (error: unknown) {
       if (error instanceof Error) {
         console.log("[v0] Login error caught:", error.message)
 
-        if (error.message.includes("Email not confirmed")) {
-          setError(
-            "Please verify your email before logging in. Check your inbox for the verification link or click below to resend.",
-          )
-        } else if (error.message.includes("Invalid login credentials")) {
+        if (error.message.includes("Invalid login credentials")) {
           setError("Invalid email or password. Please try again.")
-        } else {
+        } else if (!error.message.includes("Email not confirmed")) {
           setError(error.message || "Failed to login")
         }
       } else {
