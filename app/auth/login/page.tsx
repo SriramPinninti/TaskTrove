@@ -28,10 +28,7 @@ export default function LoginPage() {
       setEmail(decodeURIComponent(urlEmail))
     }
 
-    if (urlError === "verification_failed") {
-      setError("Email verification link is invalid or expired. Please request a new one.")
-      setShowResend(true)
-    } else if (urlError === "missing_code") {
+    if (urlError === "invalid_link" || urlError === "verification_failed" || urlError === "missing_code") {
       setError("Invalid verification link. Please request a new verification email.")
       setShowResend(true)
     }
@@ -46,20 +43,10 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
 
-      console.log("[v0] Attempting login for:", email)
-
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-
-      if (data.user) {
-        console.log("[v0] Login successful, user data:", {
-          email: data.user.email,
-          email_confirmed_at: data.user.email_confirmed_at,
-          confirmed: !!data.user.email_confirmed_at,
-        })
-      }
 
       if (authError) {
         if (
@@ -77,7 +64,6 @@ export default function LoginPage() {
         return
       }
 
-      // Success!
       router.push("/dashboard")
       router.refresh()
     } catch (error: unknown) {
