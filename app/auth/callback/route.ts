@@ -1,42 +1,48 @@
-import { createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
-import { NextResponse } from "next/server"
-import type { NextRequest } from "next/server"
+import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
-  const next = requestUrl.searchParams.get("next") || "/dashboard"
+export async function GET(request: Request) {
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get("code");
 
-  if (code) {
-    const cookieStore = await cookies()
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          getAll() {
-            return cookieStore.getAll()
-          },
-          setAll(cookiesToSet) {
-            try {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                cookieStore.set(name, value, options)
-              })
-            } catch (error) {
-              // Ignore cookie errors in server components
-            }
-          },
-        },
-      },
-    )
-
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-    if (!error) {
-      return NextResponse.redirect(new URL(next, requestUrl.origin))
-    }
+  if (!code) {
+    console.error("❌ No verification code found in URL");
+    return NextResponse.redirect(`${origin}/auth/login?error=missing_code`);
   }
 
-  return NextResponse.redirect(new URL("/auth/login?error=invalid_link", requestUrl.origin))
+  try {
+    const supabase = createClient();
+
+    // Exchange the code for a session
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+    if (error || !data?.session) {
+      console.error("❌ Verification failed:", error?.message);
+      return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`);
+    }
+
+    console.log("✅ Email verified for user:", data.user.email);
+
+    // Confirm the user actually exists or create a profile
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (!profile && !profileError) {
+      await supabase.from("profiles").insert({
+        id: data.user.id,
+        email: data.user.email,
+        credits: 100,
+        role: "user",
+      });
+    }
+
+    // Redirect to dashboard after successful verification
+    return NextResponse.redirect(`${origin}/dashboard`);
+  } catch (err) {
+    console.error("⚠️ Unexpected error during callback:", err);
+    return NextResponse.redirect(`${origin}/auth/login?error=unexpected`);
+  }
 }
