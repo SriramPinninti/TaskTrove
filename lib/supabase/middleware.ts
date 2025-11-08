@@ -10,7 +10,7 @@ export async function updateSession(request: NextRequest) {
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
-    console.warn("[v0] Missing Supabase credentials. Authentication will be skipped.")
+    console.warn("[v0] Middleware - Missing Supabase credentials")
     return supabaseResponse
   }
 
@@ -33,13 +33,14 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  console.log("[v0] Middleware - User:", user?.email || "not authenticated")
   console.log("[v0] Middleware - Path:", request.nextUrl.pathname)
+  console.log("[v0] Middleware - User:", user?.email || "none")
+  console.log("[v0] Middleware - Email confirmed:", user?.email_confirmed_at ? "yes" : "no")
 
   if (!user && !request.nextUrl.pathname.startsWith("/auth") && request.nextUrl.pathname !== "/") {
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
-    console.log("[v0] Redirecting to login - no authenticated user")
+    console.log("[v0] Middleware - Redirecting to login")
     return NextResponse.redirect(url)
   }
 

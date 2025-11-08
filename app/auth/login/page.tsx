@@ -27,21 +27,27 @@ export default function LoginPage() {
     const emailParam = searchParams.get("email")
 
     if (emailParam) {
-      setEmail(emailParam)
+      setEmail(decodeURIComponent(emailParam))
+    }
+
+    if (errorParam === "link_expired") {
+      setError("Email verification link has expired. Please request a new one below.")
+      setShowResend(true)
+    } else if (errorParam === "verification_failed") {
+      setError("Email verification failed. Please try again or contact support.")
+      setShowResend(true)
+    } else if (errorParam === "email_not_confirmed") {
+      setError("Email confirmation incomplete. Please check your inbox and click the verification link.")
+      setShowResend(true)
+    } else if (errorParam === "missing_code" || errorParam === "no_user") {
+      setError("Invalid verification link. Please request a new one.")
+      setShowResend(true)
+    } else if (errorParam === "unexpected") {
+      setError("Something went wrong. Please try again or contact support.")
     }
 
     if (verifiedParam === "true") {
       setSuccess("Email verified successfully! You can now login.")
-    }
-
-    if (errorParam === "expired_link") {
-      setError("Email verification link has expired. Please request a new one below.")
-      setShowResend(true)
-    } else if (errorParam === "auth_code_error") {
-      setError("Email verification link is invalid or expired. Please request a new one.")
-      setShowResend(true)
-    } else if (errorParam === "auth_callback_error") {
-      setError("Something went wrong during verification. Please try again.")
     }
   }, [searchParams])
 
@@ -55,7 +61,7 @@ export default function LoginPage() {
     try {
       const supabase = createClient()
 
-      console.log("[v0] Login attempt for:", email)
+      console.log("[v0] Login - Attempting login for:", email)
 
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -63,9 +69,12 @@ export default function LoginPage() {
       })
 
       if (authError) {
-        console.error("[v0] Login error:", authError)
+        console.error("[v0] Login - Error:", authError.message)
 
-        if (authError.message.toLowerCase().includes("email not confirmed")) {
+        if (
+          authError.message.toLowerCase().includes("email not confirmed") ||
+          authError.message.toLowerCase().includes("email confirmation")
+        ) {
           setError("Please verify your email address before logging in. Check your inbox for the verification link.")
           setShowResend(true)
           setIsLoading(false)
@@ -81,13 +90,23 @@ export default function LoginPage() {
         throw authError
       }
 
-      console.log("[v0] Login successful for:", data.user?.email)
-      console.log("[v0] Session established, redirecting to dashboard")
+      if (data.user && !data.user.email_confirmed_at) {
+        console.error("[v0] Login - Email not confirmed despite successful login")
+        await supabase.auth.signOut()
+        setError("Please verify your email address before logging in. Check your inbox for the verification link.")
+        setShowResend(true)
+        setIsLoading(false)
+        return
+      }
 
-      router.push("/dashboard")
+      console.log("[v0] Login - Success! User:", data.user?.email)
+      console.log("[v0] Login - Email confirmed at:", data.user?.email_confirmed_at)
+      console.log("[v0] Login - Redirecting to dashboard")
+
       router.refresh()
+      router.push("/dashboard")
     } catch (error: unknown) {
-      console.error("[v0] Unexpected login error:", error)
+      console.error("[v0] Login - Unexpected error:", error)
       if (error instanceof Error) {
         setError(error.message || "An unexpected error occurred")
       } else {
