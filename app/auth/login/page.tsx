@@ -22,8 +22,17 @@ export default function LoginPage() {
 
   useEffect(() => {
     const urlError = searchParams.get("error")
+    const urlEmail = searchParams.get("email")
+
+    if (urlEmail) {
+      setEmail(decodeURIComponent(urlEmail))
+    }
+
     if (urlError === "verification_failed") {
       setError("Email verification link is invalid or expired. Please request a new one.")
+      setShowResend(true)
+    } else if (urlError === "missing_code") {
+      setError("Invalid verification link. Please request a new verification email.")
       setShowResend(true)
     }
   }, [searchParams])
