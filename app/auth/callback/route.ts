@@ -1,48 +1,51 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@lib/supabase/server";
 import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
-  const code = searchParams.get("code");
+  const supabase = createClient();
+  const url = new URL(request.url);
+  const code = url.searchParams.get("code");
+  const origin = url.origin;
+
+  // 🔍 Log for debugging
+  console.log("[Auth Callback] Incoming:", request.url);
 
   if (!code) {
-    console.error("❌ No verification code found in URL");
+    console.error("[Auth Callback] Missing code in URL");
     return NextResponse.redirect(`${origin}/auth/login?error=missing_code`);
   }
 
   try {
-    const supabase = createClient();
-
-    // Exchange the code for a session
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (error || !data?.session) {
-      console.error("❌ Verification failed:", error?.message);
+      console.error("[Auth Callback] Code exchange failed:", error?.message);
       return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`);
     }
 
     console.log("✅ Email verified for user:", data.user.email);
 
-    // Confirm the user actually exists or create a profile
-    const { data: profile, error: profileError } = await supabase
+    // ✅ Ensure user profile exists
+    const { data: existingProfile } = await supabase
       .from("profiles")
       .select("id")
       .eq("id", data.user.id)
-      .maybeSingle();
+      .single();
 
-    if (!profile && !profileError) {
-      await supabase.from("profiles").insert({
+    if (!existingProfile) {
+      const { error: insertError } = await supabase.from("profiles").insert({
         id: data.user.id,
         email: data.user.email,
         credits: 100,
         role: "user",
       });
+
+      if (insertError) console.error("[Auth Callback] Profile insert error:", insertError);
     }
 
-    // Redirect to dashboard after successful verification
     return NextResponse.redirect(`${origin}/dashboard`);
   } catch (err) {
-    console.error("⚠️ Unexpected error during callback:", err);
+    console.error("[Auth Callback] Unexpected error:", err);
     return NextResponse.redirect(`${origin}/auth/login?error=unexpected`);
   }
 }
