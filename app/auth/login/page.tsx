@@ -17,14 +17,23 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [showResend, setShowResend] = useState(false)
   const router = useRouter()
   const searchParams = useSearchParams()
 
   useEffect(() => {
     const errorParam = searchParams.get("error")
+    const verifiedParam = searchParams.get("verified")
 
-    if (errorParam === "verification_failed") {
-      setError("Email verification failed. Please try again or contact support.")
+    if (verifiedParam === "true") {
+      setSuccess("Email verified successfully! You can now login.")
+    }
+
+    if (errorParam === "auth_code_error") {
+      setError("Email verification link is invalid or expired. Please request a new one.")
+      setShowResend(true)
+    } else if (errorParam === "auth_callback_error") {
+      setError("Something went wrong during verification. Please try again.")
     }
   }, [searchParams])
 
@@ -33,24 +42,30 @@ export default function LoginPage() {
     setIsLoading(true)
     setError(null)
     setSuccess(null)
+    setShowResend(false)
 
     try {
       const supabase = createClient()
 
-      console.log("[v0] Attempting login for:", email)
+      console.log("[v0] Login attempt for:", email)
 
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      const { data, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (authError) {
-        console.log("[v0] Login error:", authError.message)
+        console.error("[v0] Login error:", authError)
 
-        if (authError.message.includes("Email not confirmed")) {
-          setError(
-            "Please verify your email before logging in. Check your inbox for the verification link or click below to resend.",
-          )
+        if (authError.message.toLowerCase().includes("email not confirmed")) {
+          setError("Please verify your email address before logging in. Check your inbox for the verification link.")
+          setShowResend(true)
+          setIsLoading(false)
+          return
+        }
+
+        if (authError.message.toLowerCase().includes("invalid login credentials")) {
+          setError("Invalid email or password. Please try again.")
           setIsLoading(false)
           return
         }
@@ -58,19 +73,15 @@ export default function LoginPage() {
         throw authError
       }
 
-      console.log("[v0] Login successful, user:", authData.user?.email)
-      console.log("[v0] Email confirmed at:", authData.user?.email_confirmed_at)
+      console.log("[v0] Login successful for:", data.user?.email)
+      console.log("[v0] Session established, redirecting to dashboard")
 
       router.push("/dashboard")
+      router.refresh()
     } catch (error: unknown) {
+      console.error("[v0] Unexpected login error:", error)
       if (error instanceof Error) {
-        console.log("[v0] Login error caught:", error.message)
-
-        if (error.message.includes("Invalid login credentials")) {
-          setError("Invalid email or password. Please try again.")
-        } else if (!error.message.includes("Email not confirmed")) {
-          setError(error.message || "Failed to login")
-        }
+        setError(error.message || "An unexpected error occurred")
       } else {
         setError("An unexpected error occurred. Please try again.")
       }
@@ -87,9 +98,13 @@ export default function LoginPage() {
 
     setIsLoading(true)
     setError(null)
+    setSuccess(null)
 
     try {
       const supabase = createClient()
+
+      console.log("[v0] Resending verification email to:", email)
+
       const { error } = await supabase.auth.resend({
         type: "signup",
         email: email,
@@ -98,14 +113,19 @@ export default function LoginPage() {
         },
       })
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Resend error:", error)
+        throw error
+      }
 
-      setSuccess("Verification email sent! Please check your inbox.")
+      setSuccess("Verification email sent! Please check your inbox and click the link to verify your account.")
+      setShowResend(false)
     } catch (error: unknown) {
+      console.error("[v0] Resend failed:", error)
       if (error instanceof Error) {
-        setError(error.message)
+        setError(error.message || "Failed to resend verification email")
       } else {
-        setError("Failed to resend verification email")
+        setError("Failed to resend verification email. Please try again.")
       }
     } finally {
       setIsLoading(false)
@@ -151,17 +171,18 @@ export default function LoginPage() {
                 </div>
                 {success && <div className="rounded-md bg-green-50 p-3 text-sm text-green-600">{success}</div>}
                 {error && (
-                  <div className="rounded-md bg-red-50 p-3 text-sm text-red-600">
-                    {error}
-                    {error.includes("verify your email") && (
+                  <div className="space-y-2 rounded-md bg-red-50 p-3">
+                    <p className="text-sm text-red-600">{error}</p>
+                    {showResend && (
                       <Button
                         type="button"
-                        variant="link"
-                        className="mt-2 h-auto p-0 text-sm text-red-700 underline"
+                        variant="outline"
+                        size="sm"
+                        className="w-full bg-transparent"
                         onClick={handleResendVerification}
                         disabled={isLoading}
                       >
-                        Resend verification email
+                        {isLoading ? "Sending..." : "Resend Verification Email"}
                       </Button>
                     )}
                   </div>

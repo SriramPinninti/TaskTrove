@@ -4,10 +4,10 @@ import { NextResponse } from "next/server"
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get("code")
+  const next = requestUrl.searchParams.get("next") || "/dashboard"
   const origin = requestUrl.origin
 
   console.log("[v0] Auth callback - code:", code ? "present" : "missing")
-  console.log("[v0] Auth callback - origin:", origin)
 
   if (code) {
     try {
@@ -16,12 +16,12 @@ export async function GET(request: Request) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
       if (error) {
-        console.error("[v0] Error exchanging code for session:", error)
-        return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`)
+        console.error("[v0] Error exchanging code:", error)
+        return NextResponse.redirect(`${origin}/auth/login?error=auth_code_error`)
       }
 
-      console.log("[v0] Successfully exchanged code for session, user:", data.user?.email)
-      console.log("[v0] Email confirmed:", data.user?.email_confirmed_at)
+      console.log("[v0] Email verified successfully for:", data.user?.email)
+      console.log("[v0] Email confirmed at:", data.user?.email_confirmed_at)
 
       if (data.user) {
         const { data: existingProfile } = await supabase.from("profiles").select("id").eq("id", data.user.id).single()
@@ -36,21 +36,19 @@ export async function GET(request: Request) {
           })
 
           if (profileError) {
-            console.error("[v0] Error creating profile:", profileError)
+            console.error("[v0] Profile creation error:", profileError)
           } else {
-            console.log("[v0] Profile created successfully for user:", data.user.email)
+            console.log("[v0] Profile created for:", data.user.email)
           }
-        } else {
-          console.log("[v0] Profile already exists for user:", data.user.email)
         }
       }
 
-      return NextResponse.redirect(`${origin}/dashboard?verified=true`)
+      return NextResponse.redirect(`${origin}${next}?verified=true`)
     } catch (error) {
-      console.error("[v0] Exception during code exchange:", error)
-      return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`)
+      console.error("[v0] Callback exception:", error)
+      return NextResponse.redirect(`${origin}/auth/login?error=auth_callback_error`)
     }
   }
 
-  return NextResponse.redirect(`${origin}/dashboard`)
+  return NextResponse.redirect(`${origin}/auth/login`)
 }
