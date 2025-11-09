@@ -15,13 +15,26 @@ export async function GET(request: Request) {
   try {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
-    if (error || !data?.session) {
-      // If so, check if there's an already verified user and show success instead of error
-      if (error?.message?.includes("already been used") || error?.message?.includes("expired")) {
-        // Try to extract email from the token to check if user is already verified
-        // If we can't determine, show a friendly message suggesting the email might already be verified
+    if (error) {
+      const errorMessage = error.message?.toLowerCase() || ""
+
+      // Check if the token has already been used or is expired
+      if (
+        errorMessage.includes("already been used") ||
+        errorMessage.includes("expired") ||
+        errorMessage.includes("invalid") ||
+        errorMessage.includes("pkce") ||
+        error.status === 400
+      ) {
+        // Token already used means user is likely already verified
         return NextResponse.redirect(`${origin}/auth/login?verified=true`)
       }
+
+      // Other errors
+      return NextResponse.redirect(`${origin}/auth/login?error=invalid_link`)
+    }
+
+    if (!data?.session) {
       return NextResponse.redirect(`${origin}/auth/login?error=invalid_link`)
     }
 
