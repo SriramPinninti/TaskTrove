@@ -20,26 +20,40 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  useEffect(() => {
-    const urlError = searchParams.get("error")
-    const urlEmail = searchParams.get("email")
-    const urlVerified = searchParams.get("verified")
+useEffect(() => {
+  const urlError = searchParams.get("error")
+  const urlEmail = searchParams.get("email")
+  const urlVerified = searchParams.get("verified")
 
-    if (urlEmail) {
-      setEmail(decodeURIComponent(urlEmail))
-    }
+  if (urlEmail) {
+    setEmail(decodeURIComponent(urlEmail))
+  }
 
-    if (urlVerified === "true") {
-      setError("✅ Your email is already verified! You can login with your credentials.")
-      setShowResend(false)
-      return
-    }
+  // ✅ Case 1: Fresh verification link (first time)
+  if (urlVerified === "true") {
+    setError("✅ Email verified successfully! You can now log in with your credentials.")
+    setShowResend(false)
+    return
+  }
 
-    if (urlError === "invalid_link" || urlError === "verification_failed" || urlError === "missing_code") {
-      setError("Invalid verification link. Please request a new verification email.")
-      setShowResend(true)
-    }
-  }, [searchParams])
+  // ✅ Case 2: Link already used (subsequent clicks)
+  if (urlVerified === "already") {
+    setError("✅ Your email is already verified. You can log in with your credentials.")
+    setShowResend(false)
+    return
+  }
+
+  // ❌ Invalid or broken link
+  if (
+    urlError === "invalid_link" ||
+    urlError === "verification_failed" ||
+    urlError === "missing_code"
+  ) {
+    setError("Invalid verification link. Please request a new verification email.")
+    setShowResend(true)
+  }
+}, [searchParams])
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
