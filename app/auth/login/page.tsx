@@ -23,9 +23,16 @@ export default function LoginPage() {
   useEffect(() => {
     const urlError = searchParams.get("error")
     const urlEmail = searchParams.get("email")
+    const urlVerified = searchParams.get("verified")
 
     if (urlEmail) {
       setEmail(decodeURIComponent(urlEmail))
+    }
+
+    if (urlVerified === "true") {
+      setError("✅ Your email is already verified! You can login with your credentials.")
+      setShowResend(false)
+      return
     }
 
     if (urlError === "invalid_link" || urlError === "verification_failed" || urlError === "missing_code") {

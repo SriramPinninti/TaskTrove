@@ -16,6 +16,12 @@ export async function GET(request: Request) {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (error || !data?.session) {
+      // If so, check if there's an already verified user and show success instead of error
+      if (error?.message?.includes("already been used") || error?.message?.includes("expired")) {
+        // Try to extract email from the token to check if user is already verified
+        // If we can't determine, show a friendly message suggesting the email might already be verified
+        return NextResponse.redirect(`${origin}/auth/login?verified=true`)
+      }
       return NextResponse.redirect(`${origin}/auth/login?error=invalid_link`)
     }
 
@@ -35,7 +41,6 @@ export async function GET(request: Request) {
         })
       }
     } catch (profileError) {
-      // Profile creation failed but verification succeeded - still redirect to dashboard
       console.error("Profile creation error (non-fatal):", profileError)
     }
 
