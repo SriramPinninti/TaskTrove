@@ -24,18 +24,24 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = createClient()
 
-      const redirectUrl =
-        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-        `${typeof window !== "undefined" ? window.location.origin : ""}/auth/reset-password`
+      const redirectUrl = `${window.location.origin}/auth/callback?type=recovery`
+
+      console.log("[v0] Sending password reset email to:", email)
+      console.log("[v0] Redirect URL:", redirectUrl)
 
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       })
 
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Password reset error:", error)
+        throw error
+      }
 
+      console.log("[v0] Password reset email sent successfully")
       setLinkSent(true)
     } catch (error: unknown) {
+      console.error("[v0] Failed to send reset email:", error)
       if (error instanceof Error) {
         setError(error.message || "Failed to send reset link")
       } else {
@@ -82,14 +88,20 @@ export default function ForgotPasswordPage() {
                     setError(null)
                     try {
                       const supabase = createClient()
-                      const redirectUrl =
-                        process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-                        `${typeof window !== "undefined" ? window.location.origin : ""}/auth/reset-password`
+                      const redirectUrl = `${window.location.origin}/auth/callback?type=recovery`
+
+                      console.log("[v0] Resending password reset email to:", email)
+                      console.log("[v0] Redirect URL:", redirectUrl)
 
                       const { error } = await supabase.auth.resetPasswordForEmail(email, {
                         redirectTo: redirectUrl,
                       })
-                      if (error) throw error
+                      if (error) {
+                        console.error("[v0] Failed to resend reset email:", error)
+                        throw error
+                      }
+
+                      console.log("[v0] Reset link resent successfully")
                       alert("Reset link resent! Check your inbox.")
                     } catch (err) {
                       setError("Failed to resend reset link. Please try again.")

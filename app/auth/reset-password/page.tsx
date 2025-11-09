@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import { AlertCircle, CheckCircle } from "lucide-react"
 
@@ -20,18 +20,20 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   useEffect(() => {
     const checkAuth = async () => {
       const supabase = createClient()
+      console.log("[v0] Reset password - Checking authentication")
       const {
         data: { user },
       } = await supabase.auth.getUser()
 
       if (user) {
+        console.log("[v0] Reset password - User authenticated:", user.id)
         setIsAuthenticated(true)
       } else {
+        console.error("[v0] Reset password - No authenticated user, redirecting to forgot password")
         // Redirect to forgot password if not authenticated
         router.push("/auth/forgot-password?error=link_expired")
       }
@@ -59,16 +61,21 @@ export default function ResetPasswordPage() {
     }
 
     try {
+      console.log("[v0] Reset password - Updating password")
       const { error } = await supabase.auth.updateUser({
         password: password,
       })
-      if (error) throw error
+      if (error) {
+        console.error("[v0] Reset password - Update failed:", error.message)
+        throw error
+      }
 
+      console.log("[v0] Reset password - Password updated successfully")
       setSuccess(true)
 
       // Redirect to login after 2 seconds
       setTimeout(() => {
-        router.push("/auth/login")
+        router.push("/auth/login?password_reset=true")
       }, 2000)
     } catch (error: unknown) {
       if (error instanceof Error) {
