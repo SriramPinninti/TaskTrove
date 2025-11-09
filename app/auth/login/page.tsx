@@ -28,10 +28,21 @@ export default function LoginPage() {
       setEmail(decodeURIComponent(urlEmail))
     }
 
-    if (urlError === "invalid_link" || urlError === "verification_failed" || urlError === "missing_code") {
-      setError("Invalid verification link. Please request a new verification email.")
-      setShowResend(true)
-    }
+    const urlVerified = searchParams.get("verified")
+
+if (urlVerified) {
+  setError(null)
+  setShowResend(false)
+  alert("✅ Email verified successfully! You can now log in.")
+} else if (
+  urlError === "invalid_link" ||
+  urlError === "verification_failed" ||
+  urlError === "missing_code"
+) {
+  setError("Invalid verification link. Please request a new verification email.")
+  setShowResend(true)
+}
+
   }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {

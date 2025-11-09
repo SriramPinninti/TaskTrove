@@ -30,7 +30,7 @@ export async function GET(request: Request) {
       })
     }
 
-    return NextResponse.redirect(`${origin}/dashboard`)
+  return NextResponse.redirect(`${origin}/auth/login?verified=true`)
   } catch (err) {
     console.error("[Auth Callback] Unexpected error:", err)
     return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`)
