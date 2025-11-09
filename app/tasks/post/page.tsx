@@ -43,23 +43,15 @@ export default function PostTaskPage() {
       return
     }
 
-    try {
-      const formDataObj = new FormData(e.currentTarget)
-      const result = await postTask(formDataObj)
+    const formDataObj = new FormData(e.currentTarget)
+    const result = await postTask(formDataObj)
 
-      if (result?.error) {
-        setError(result.error)
-        setIsLoading(false)
-      }
-      // If successful, the server action will redirect
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        setError(error.message)
-      } else {
-        setError("An error occurred while posting the task")
-      }
+    // Only handle actual errors, not redirects
+    if (result?.error) {
+      setError(result.error)
       setIsLoading(false)
     }
+    // If successful, the server action will redirect and we don't need to do anything
   }
 
   return (

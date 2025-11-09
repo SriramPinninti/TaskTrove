@@ -95,8 +95,8 @@ export async function postTask(formData: FormData) {
 
   console.log("[v0] Task inserted successfully:", insertedTask)
 
-  // Revalidate and redirect
   revalidatePath("/tasks/my-tasks")
   revalidatePath("/tasks/browse")
+  revalidatePath("/dashboard")
   redirect("/tasks/my-tasks")
 }
