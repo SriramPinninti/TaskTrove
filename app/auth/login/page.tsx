@@ -27,12 +27,8 @@ export default function LoginPage() {
     if (urlEmail) {
       setEmail(decodeURIComponent(urlEmail))
     }
-    const urlVerified = searchParams.get("verified")
 
-    if (urlVerified) {
-      setError("✅ Email verified successfully! You can now log in.")
-      setShowResend(false)
-    } else if (urlError === "invalid_link" || urlError === "verification_failed" || urlError === "missing_code") {
+    if (urlError === "invalid_link" || urlError === "verification_failed" || urlError === "missing_code") {
       setError("Invalid verification link. Please request a new verification email.")
       setShowResend(true)
     }
