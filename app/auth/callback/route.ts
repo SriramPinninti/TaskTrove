@@ -9,7 +9,7 @@ export async function GET(request: Request) {
   const origin = url.origin
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/auth/login?error=missing_code`)
+    return NextResponse.redirect(`${origin}/auth/login`)
   }
 
   try {
@@ -26,16 +26,14 @@ export async function GET(request: Request) {
         errorMessage.includes("pkce") ||
         error.status === 400
       ) {
-        // Token already used means user is likely already verified
-        return NextResponse.redirect(`${origin}/auth/login?verified=true`)
+        return NextResponse.redirect(`${origin}/auth/login`)
       }
 
-      // Other errors
-      return NextResponse.redirect(`${origin}/auth/login?error=invalid_link`)
+      return NextResponse.redirect(`${origin}/auth/login`)
     }
 
     if (!data?.session) {
-      return NextResponse.redirect(`${origin}/auth/login?error=invalid_link`)
+      return NextResponse.redirect(`${origin}/auth/login`)
     }
 
     if (type === "recovery") {
@@ -60,6 +58,6 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${origin}/dashboard`)
   } catch (err) {
     console.error("Auth callback error:", err)
-    return NextResponse.redirect(`${origin}/auth/login?error=verification_failed`)
+    return NextResponse.redirect(`${origin}/auth/login`)
   }
 }

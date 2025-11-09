@@ -20,40 +20,13 @@ export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-useEffect(() => {
-  const urlError = searchParams.get("error")
-  const urlEmail = searchParams.get("email")
-  const urlVerified = searchParams.get("verified")
+  useEffect(() => {
+    const urlEmail = searchParams.get("email")
 
-  if (urlEmail) {
-    setEmail(decodeURIComponent(urlEmail))
-  }
-
-  // ✅ Case 1: Fresh verification link (first time)
-  if (urlVerified === "true") {
-    setError("✅ Email verified successfully! You can now log in with your credentials.")
-    setShowResend(false)
-    return
-  }
-
-  // ✅ Case 2: Link already used (subsequent clicks)
-  if (urlVerified === "already") {
-    setError("✅ Your email is already verified. You can log in with your credentials.")
-    setShowResend(false)
-    return
-  }
-
-  // ❌ Invalid or broken link
-  if (
-    urlError === "invalid_link" ||
-    urlError === "verification_failed" ||
-    urlError === "missing_code"
-  ) {
-    setError("Invalid verification link. Please request a new verification email.")
-    setShowResend(true)
-  }
-}, [searchParams])
-
+    if (urlEmail) {
+      setEmail(decodeURIComponent(urlEmail))
+    }
+  }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
