@@ -27,22 +27,15 @@ export default function LoginPage() {
     if (urlEmail) {
       setEmail(decodeURIComponent(urlEmail))
     }
-
     const urlVerified = searchParams.get("verified")
 
-if (urlVerified) {
-  setError(null)
-  setShowResend(false)
-  alert("✅ Email verified successfully! You can now log in.")
-} else if (
-  urlError === "invalid_link" ||
-  urlError === "verification_failed" ||
-  urlError === "missing_code"
-) {
-  setError("Invalid verification link. Please request a new verification email.")
-  setShowResend(true)
-}
-
+    if (urlVerified) {
+      setError("✅ Email verified successfully! You can now log in.")
+      setShowResend(false)
+    } else if (urlError === "invalid_link" || urlError === "verification_failed" || urlError === "missing_code") {
+      setError("Invalid verification link. Please request a new verification email.")
+      setShowResend(true)
+    }
   }, [searchParams])
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -162,8 +155,12 @@ if (urlVerified) {
                   />
                 </div>
                 {error && (
-                  <div className="space-y-2 rounded-md bg-red-50 p-3">
-                    <p className="text-sm text-red-600">{error}</p>
+                  <div
+                    className={`space-y-2 rounded-md p-3 ${
+                      error.includes("✅") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-600"
+                    }`}
+                  >
+                    <p className="text-sm">{error}</p>
                     {showResend && (
                       <Button
                         type="button"
