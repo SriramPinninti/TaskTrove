@@ -52,6 +52,18 @@ export default function SignupPage() {
     try {
       const supabase = createClient()
 
+      const { data: existingUser } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", email.toLowerCase())
+        .single()
+
+      if (existingUser) {
+        setError("This email is already registered. Please login instead or use the 'Forgot password?' link.")
+        setIsLoading(false)
+        return
+      }
+
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -69,8 +81,14 @@ export default function SignupPage() {
       setSuccess(true)
     } catch (error: unknown) {
       if (error instanceof Error) {
-        if (error.message.includes("already registered")) {
-          setError("This email is already registered. Please login or reset your password.")
+        const errorMessage = error.message.toLowerCase()
+        if (
+          errorMessage.includes("already registered") ||
+          errorMessage.includes("already exists") ||
+          errorMessage.includes("duplicate") ||
+          errorMessage.includes("user_already_exists")
+        ) {
+          setError("This email is already registered. Please login instead or use the 'Forgot password?' link.")
         } else {
           setError(error.message)
         }
